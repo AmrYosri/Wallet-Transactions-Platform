@@ -4,13 +4,12 @@ import (
 	"fmt"
 	"net/http"
 	"os"
-	"svc-wallet/util/logger"
 
-	"svc-wallet/external/mongodb"
-
-	"svc-wallet/internal/wallet"
-
-	"svc-wallet/api/rest"
+	"svc-transactions/api/rest"
+	"svc-transactions/client/wallet"
+	"svc-transactions/external/mongodb"
+	"svc-transactions/internal/transactions"
+	"svc-transactions/util/logger"
 
 	"github.com/joho/godotenv"
 )
@@ -33,8 +32,11 @@ func main() {
 	}
 	logger.Log.Info().Msg("Connected to MongoDB")
 
-	repo := wallet.NewRepository(db)
-	service := wallet.NewService(repo)
+	walletServiceURL := os.Getenv("WALLET_SERVICE_URL")
+	walletClient := wallet.NewClient(walletServiceURL)
+
+	repo := transactions.NewRepository(db)
+	service := transactions.NewService(repo, walletClient)
 	controller := rest.NewController(service)
 	routes := rest.NewRouter(controller)
 

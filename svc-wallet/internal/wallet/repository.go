@@ -2,6 +2,7 @@ package wallet
 
 import (
 	"context"
+	"time"
 
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/bson/primitive"
@@ -19,8 +20,12 @@ func NewRepository(db *mongo.Database) *Repository {
 }
 
 func (r *Repository) Create(ctx context.Context, wallet *Wallet) error {
-	_, err := r.collection.InsertOne(ctx, wallet)
-	return err
+	result, err := r.collection.InsertOne(ctx, wallet)
+	if err != nil {
+		return err
+	}
+	wallet.ID = result.InsertedID.(primitive.ObjectID)
+	return nil
 }
 
 func (r *Repository) FindByID(ctx context.Context, id primitive.ObjectID) (*Wallet, error) {
@@ -30,4 +35,15 @@ func (r *Repository) FindByID(ctx context.Context, id primitive.ObjectID) (*Wall
 		return nil, err
 	}
 	return &wallet, nil
+}
+func (r *Repository) UpdateBalance(ctx context.Context, id primitive.ObjectID, newBalance int64) error {
+	update := bson.M{
+		"$set": bson.M{
+			"balance":    newBalance,
+			"updated_at": time.Now(),
+		},
+	}
+
+	_, err := r.collection.UpdateOne(ctx, bson.M{"_id": id}, update)
+	return err
 }
