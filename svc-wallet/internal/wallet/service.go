@@ -28,8 +28,8 @@ func (s *Service) CreateWallet(ctx context.Context, ownerPhone, currency string)
 		UpdatedAt:  time.Now(),
 	}
 
-	err := s.repo.Create(ctx, wallet)
-	if err != nil {
+	err := s.repo.Create(ctx, wallet)	
+	if err != nil {	
 		return nil, err
 	}
 
