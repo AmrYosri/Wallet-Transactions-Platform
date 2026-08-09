@@ -1,0 +1,32 @@
+syntax = "proto3";
+
+package user;
+
+option go_package = "svc-user/proto";
+
+service UserService {
+  rpc GetUserByNationalID(GetUserRequest) returns (UserResponse);
+  rpc AddPhoneNumber(AddPhoneNumberRequest) returns (AddPhoneNumberResponse);
+}
+
+message GetUserRequest {
+  string national_id = 1;
+}
+
+message UserResponse {
+  string id = 1;
+  string first_name = 2;
+  string last_name = 3;
+  string national_id = 4;
+  repeated string phone_numbers = 5;
+  string status = 6;
+}
+
+message AddPhoneNumberRequest {
+  string national_id = 1;
+  string phone = 2;
+}
+
+message AddPhoneNumberResponse {
+  bool success = 1;
+}
