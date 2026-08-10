@@ -5,22 +5,31 @@ import (
 	"errors"
 	"time"
 
+	"svc-wallet/client/user"
+
 	"go.mongodb.org/mongo-driver/bson/primitive"
 )
 
 type Service struct {
-	repo *Repository
+	repo       *Repository
+	userClient *user.Client
 }
 
-func NewService(repo *Repository) *Service {
+func NewService(repo *Repository, userClient *user.Client) *Service {
 	return &Service{
-		repo: repo,
+		repo:       repo,
+		userClient: userClient,
 	}
 }
+func (s *Service) CreateWallet(ctx context.Context, ownerPhone, currency, nationalID string) (*Wallet, error) {
+	_, err := s.userClient.GetUserByNationalID(ctx, nationalID)
+	if err != nil {
+		return nil, errors.New("user not found")
+	}
 
-func (s *Service) CreateWallet(ctx context.Context, ownerPhone, currency string) (*Wallet, error) {
 	wallet := &Wallet{
 		OwnerPhone: ownerPhone,
+		NationalID: nationalID,
 		Currency:   currency,
 		Balance:    0,
 		Status:     "active",
@@ -28,14 +37,13 @@ func (s *Service) CreateWallet(ctx context.Context, ownerPhone, currency string)
 		UpdatedAt:  time.Now(),
 	}
 
-	err := s.repo.Create(ctx, wallet)	
-	if err != nil {	
+	err = s.repo.Create(ctx, wallet)
+	if err != nil {
 		return nil, err
 	}
 
 	return wallet, nil
 }
-
 func (s *Service) GetWallet(ctx context.Context, id string) (*Wallet, error) {
 	objID, err := primitive.ObjectIDFromHex(id)
 	if err != nil {

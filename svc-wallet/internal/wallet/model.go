@@ -9,6 +9,7 @@ import (
 type Wallet struct {
 	ID         primitive.ObjectID `bson:"_id,omitempty"`
 	OwnerPhone string             `bson:"owner_phone"`
+	NationalID string             `bson:"national_id"`
 	Currency   string             `bson:"currency"`
 	Balance    int64              `bson:"balance"`
 	Status     string             `bson:"status"`

@@ -1,4 +1,4 @@
-	package rest
+package rest
 
 import (
 	"encoding/json"
@@ -27,9 +27,9 @@ func (c *Controller) CreateWallet(w http.ResponseWriter, r *http.Request) {
 
 	ctx := r.Context()
 
-	newWallet, err := c.service.CreateWallet(ctx, req.OwnerPhone, req.Currency)
+	newWallet, err := c.service.CreateWallet(ctx, req.OwnerPhone, req.Currency, req.NationalID)
 	if err != nil {
-		http.Error(w, "failed to create wallet", http.StatusInternalServerError)
+		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
 

@@ -1,8 +1,8 @@
 package wallet
 
-
 type CreateWalletRequest struct {
 	OwnerPhone string `json:"owner_phone"`
+	NationalID string `json:"national_id"`
 	Currency   string `json:"currency"`
 }
 

@@ -12,6 +12,8 @@ import (
 
 	"svc-wallet/api/rest"
 
+	"svc-wallet/client/user"
+
 	"github.com/joho/godotenv"
 )
 
@@ -32,9 +34,13 @@ func main() {
 		logger.Log.Fatal().Err(err).Msg("Failed to connect to MongoDB")
 	}
 	logger.Log.Info().Msg("Connected to MongoDB")
+	userClient, err := user.NewClient("localhost:9002")
+	if err != nil {
+		logger.Log.Fatal().Err(err).Msg("Failed to connect to svc-user gRPC")
+	}
 
 	repo := wallet.NewRepository(db)
-	service := wallet.NewService(repo)
+	service := wallet.NewService(repo, userClient)
 	controller := rest.NewController(service)
 	routes := rest.NewRouter(controller)
 
