@@ -1,0 +1,23 @@
+syntax = "proto3";
+
+package wallet;
+
+option go_package = "svc-wallet/proto";
+
+service WalletService {
+  rpc ApplyBalanceChange(BalanceChangeRequest) returns (BalanceChangeResponse);
+}
+
+message BalanceChangeRequest {
+  string wallet_id = 1;
+  string type = 2;
+  int64 amount = 3;
+}
+
+message BalanceChangeResponse {
+    string wallet_id = 1;
+    string type = 2;
+    int64 amount = 3;
+    int64 balance_before =4;
+    int64 balance_after = 5;
+}

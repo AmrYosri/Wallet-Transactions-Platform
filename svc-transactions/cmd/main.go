@@ -33,7 +33,10 @@ func main() {
 	logger.Log.Info().Msg("Connected to MongoDB")
 
 	walletServiceURL := os.Getenv("WALLET_SERVICE_URL")
-	walletClient := wallet.NewClient(walletServiceURL)
+	walletClient, err := wallet.NewClient(walletServiceURL)
+	if err != nil {
+		logger.Log.Fatal().Err(err).Msg("Failed to create wallet client")
+	}
 
 	repo := transactions.NewRepository(db)
 	service := transactions.NewService(repo, walletClient)
