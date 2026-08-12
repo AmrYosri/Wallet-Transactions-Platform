@@ -2,19 +2,20 @@ package main
 
 import (
 	"fmt"
+	"net"
 	"net/http"
 	"os"
+
+	grpcapi "svc-wallet/api/grpc"
+	"svc-wallet/api/rest"
+	"svc-wallet/client/user"
+	"svc-wallet/external/mongodb"
+	"svc-wallet/internal/wallet"
+	"svc-wallet/proto"
 	"svc-wallet/util/logger"
 
-	"svc-wallet/external/mongodb"
-
-	"svc-wallet/internal/wallet"
-
-	"svc-wallet/api/rest"
-
-	"svc-wallet/client/user"
-
 	"github.com/joho/godotenv"
+	"google.golang.org/grpc"
 )
 
 func main() {
@@ -34,13 +35,31 @@ func main() {
 		logger.Log.Fatal().Err(err).Msg("Failed to connect to MongoDB")
 	}
 	logger.Log.Info().Msg("Connected to MongoDB")
-	userClient, err := user.NewClient("localhost:9002")
+
+	userClient, err := user.NewClient(os.Getenv("USER_SERVICE_GRPC_ADDR"))
 	if err != nil {
 		logger.Log.Fatal().Err(err).Msg("Failed to connect to svc-user gRPC")
 	}
 
 	repo := wallet.NewRepository(db)
 	service := wallet.NewService(repo, userClient)
+
+	grpcPort := os.Getenv("GRPC_PORT")
+	grpcServer := grpc.NewServer()
+	proto.RegisterWalletServiceServer(grpcServer, grpcapi.NewGRPCServer(service))
+
+	listener, err := net.Listen("tcp", ":"+grpcPort)
+	if err != nil {
+		logger.Log.Fatal().Err(err).Msg("Failed to listen for gRPC")
+	}
+
+	go func() {
+		logger.Log.Info().Msg("Starting gRPC server on port " + grpcPort)
+		if err := grpcServer.Serve(listener); err != nil {
+			logger.Log.Fatal().Err(err).Msg("gRPC server failed")
+		}
+	}()
+
 	controller := rest.NewController(service)
 	routes := rest.NewRouter(controller)
 
