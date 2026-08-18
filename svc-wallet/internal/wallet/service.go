@@ -7,7 +7,10 @@ import (
 
 	"svc-wallet/client/user"
 
+	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/bson/primitive"
+	"go.mongodb.org/mongo-driver/mongo/options"
+	"go.mongodb.org/mongo-driver/mongo"
 )
 
 type Service struct {
@@ -68,38 +71,58 @@ func (s *Service) ApplyBalanceChange(ctx context.Context, id string, changeType 
 	if err != nil {
 		return nil, 0, err
 	}
-
-	wallet, err := s.repo.FindByID(ctx, objID)
-	if err != nil {
-		return nil, 0, err
-	}
-
-	balanceBefore := wallet.Balance
-	var newBalance int64
-
-	switch changeType {
+	var filter bson.M
+	var update bson.M 
+		switch changeType {
 	case "withdraw":
-		if wallet.Balance-amount < 0 {
-			return nil, 0, errors.New("insufficient funds")
+		filter = bson.M{
+			"_id": objID,
+			"balance": bson.M{"$gte": amount},
+
 		}
-		newBalance = wallet.Balance - amount
+		update = bson.M{"$inc": bson.M{"balance": -amount}}
 
 	case "deposit":
-		if wallet.Balance+amount > 400000 {
-			return nil, 0, errors.New("this deposit would push the balance over the limit")
+		filter = bson.M{
+			"_id": objID,
+			"balance": bson.M{"$lte":400000 - amount},
 		}
-		newBalance = wallet.Balance + amount
+		update = bson.M{"$inc": bson.M{"balance": amount}}
+
 
 	default:
 		return nil, 0, errors.New("invalid type")
 	}
 
-	err = s.repo.UpdateBalance(ctx, objID, newBalance)
-	if err != nil {
+	opts := options.FindOneAndUpdate().SetReturnDocument(options.Before)
+
+	var wallet Wallet
+	err = s.repo.collection.FindOneAndUpdate(ctx,filter,update,opts).Decode(&wallet)
+	if err == nil {
+		balanceBefore := wallet.Balance
+		if changeType == "withdraw" {
+			wallet.Balance -= amount
+		}else if changeType == "deposit" {
+			wallet.Balance += amount
+		}
+		return &wallet, balanceBefore, nil
+	}
+	if err != mongo.ErrNoDocuments {
 		return nil, 0, err
 	}
+	var existing Wallet 
+	lookupErr := s.repo.collection.FindOne(ctx , bson.M{"_id": objID}).Decode(&existing)
 
-	wallet.Balance = newBalance
+	if lookupErr == mongo.ErrNoDocuments {
+		return nil, 0, errors.New("wallet not found")
+	}
+	if lookupErr != nil {
+		return nil, 0, lookupErr
+	}
+	if changeType == "withdraw" {
+		return nil, 0, errors.New("insufficient funds")
+	}
+	return nil , 0, errors.New("deposit would exceed balance limit")
 
-	return wallet, balanceBefore, nil
 }
+
