@@ -23,27 +23,33 @@ func (s *Service) ApplyTransaction(ctx context.Context, walletID string, changeT
 		return nil, errors.New("amount must be positive")
 	}
 
-	result, err := s.walletClient.ApplyBalanceChange(ctx, walletID, changeType, amount)
-	if err != nil {
-		return nil, err
-	}
 
 	transaction := &Transaction{
 		WalletID:     walletID,
 		Type:         changeType,
 		Amount:       amount,
 		Currency:     "EGP",
-		BalanceBefore: result.BalanceBefore,
-		BalanceAfter: result.BalanceAfter,
+		Status:       StatusPending,
 		CreatedAt:    time.Now(),
+		UpdatedAt:    time.Now(),
 	}
 
-	err = s.repo.Create(ctx, transaction)
-	if err != nil {
+	if err := s.repo.Create(ctx, transaction); err != nil{
 		return nil, err
 	}
+	result, err := s.walletClient.ApplyBalanceChange(ctx, walletID, changeType,amount)
+	if err != nil{
+		_ = s.repo.MarkFailed(ctx ,transaction.ID, err.Error())
+		return nil , err 
+	}
+	if err := s.repo.MarkCompleted(ctx ,transaction.ID,result.BalanceBefore ,result.BalanceAfter); err!=nil{
+		return nil , err
+	}
+	transaction.Status = StatusCompleted
+	transaction.BalanceBefore = result.BalanceBefore
+	transaction.BalanceAfter = result.BalanceAfter
+	return transaction , nil
 
-	return transaction, nil
 }
 func (s *Service) GetTransactions(ctx context.Context, walletID string) ([]Transaction, error) {
 

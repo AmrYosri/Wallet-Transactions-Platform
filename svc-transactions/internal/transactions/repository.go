@@ -2,6 +2,7 @@ package transactions
 
 import (
 	"context"
+	"time"
 
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/bson/primitive"
@@ -44,4 +45,29 @@ func (r *Repository) FindByWalletID(ctx context.Context, walletID string) ([]Tra
 	}
 
 	return transactions, nil
+}
+
+func (r *Repository) MarkCompleted(ctx context.Context, id primitive.ObjectID , balanceBefore , balanceAfter int64) error {
+	update := bson.M{
+		"$set":bson.M{
+			"status": StatusCompleted,
+			"balance_before": balanceBefore,
+			"balance_after": balanceAfter,
+			"updated_at": time.Now(),
+		},
+	}
+	_,err:= r.collection.UpdateOne(ctx, bson.M{"_id":id},update)
+	return err
+}
+
+func (r *Repository) MarkFailed(ctx context.Context, id primitive.ObjectID , reason string) error {
+	update := bson.M{
+		"$set":bson.M{
+			"status": StatusFailed,
+			"failure_reason": reason,
+			"updated_at": time.Now(),
+		},
+	}
+	_,err:= r.collection.UpdateOne(ctx, bson.M{"_id":id},update)
+	return err
 }
