@@ -4,6 +4,8 @@ import (
 	"encoding/json"
 	"net/http"
 	"svc-transactions/internal/transactions"
+
+	"go.mongodb.org/mongo-driver/bson/primitive"
 )
 
 type Controller struct {
@@ -24,10 +26,13 @@ func (c *Controller) Deposit(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "invalid request body", http.StatusBadRequest)
 		return
 	}
+	if req.RequestID == "" {
+    req.RequestID = primitive.NewObjectID().Hex()
+	}
 
 	ctx := r.Context()
 
-	result, err := c.service.ApplyTransaction(ctx, req.WalletID, "deposit", req.Amount)
+	result, err := c.service.ApplyTransaction(ctx, req.WalletID, "deposit", req.Amount, req.RequestID)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
@@ -52,14 +57,20 @@ func (c *Controller) Deposit(w http.ResponseWriter, r *http.Request) {
 func (c *Controller) Withdraw(w http.ResponseWriter, r *http.Request) {
 	var req transactions.TransactionRequest
 	err := json.NewDecoder(r.Body).Decode(&req)
+	
+	
 	if err != nil {
 		http.Error(w, "invalid request body", http.StatusBadRequest)
 		return
 	}
 
+	if req.RequestID == "" {
+    req.RequestID = primitive.NewObjectID().Hex()
+	}
+
 	ctx := r.Context()
 
-	result, err := c.service.ApplyTransaction(ctx, req.WalletID, "withdraw", req.Amount)
+	result, err := c.service.ApplyTransaction(ctx, req.WalletID, "withdraw", req.Amount, req.RequestID)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return

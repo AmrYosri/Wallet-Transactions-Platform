@@ -5,6 +5,7 @@ import (
 	"errors"
 	"svc-transactions/client/wallet"
 	"time"
+	"go.mongodb.org/mongo-driver/mongo"
 )
 
 type Service struct {
@@ -18,9 +19,12 @@ func NewService(repo *Repository, walletClient *wallet.Client) *Service {
 		walletClient: walletClient,
 	}
 }
-func (s *Service) ApplyTransaction(ctx context.Context, walletID string, changeType string, amount int64) (*Transaction, error) {
+func (s *Service) ApplyTransaction(ctx context.Context, walletID string, changeType string, amount int64, requestID string) (*Transaction, error) {
 	if amount <= 0 {
 		return nil, errors.New("amount must be positive")
+	}
+	if requestID == ""{
+		return nil , errors.New("request_id is required")
 	}
 
 
@@ -30,13 +34,23 @@ func (s *Service) ApplyTransaction(ctx context.Context, walletID string, changeT
 		Amount:       amount,
 		Currency:     "EGP",
 		Status:       StatusPending,
+		RequestID:    requestID,
 		CreatedAt:    time.Now(),
 		UpdatedAt:    time.Now(),
 	}
 
-	if err := s.repo.Create(ctx, transaction); err != nil{
-		return nil, err
+	err := s.repo.Create(ctx,transaction)
+	if err !=nil{
+		if mongo.IsDuplicateKeyError(err) {
+			existing , findErr := s.repo.FindByRequestID(ctx, requestID)
+			if findErr != nil {
+				return nil, findErr
+			}
+			return existing, nil
+		}
+		return nil , err
 	}
+
 	result, err := s.walletClient.ApplyBalanceChange(ctx, walletID, changeType,amount)
 	if err != nil{
 		_ = s.repo.MarkFailed(ctx ,transaction.ID, err.Error())

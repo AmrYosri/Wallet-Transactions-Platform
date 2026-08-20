@@ -71,3 +71,12 @@ func (r *Repository) MarkFailed(ctx context.Context, id primitive.ObjectID , rea
 	_,err:= r.collection.UpdateOne(ctx, bson.M{"_id":id},update)
 	return err
 }
+
+func (r *Repository) FindByRequestID(ctx context.Context, requestID string) (*Transaction, error) {
+	var transaction Transaction
+	err := r.collection.FindOne(ctx, bson.M{"request_id": requestID}).Decode(&transaction)
+	if err != nil {
+		return nil, err
+	}
+	return &transaction, nil
+}

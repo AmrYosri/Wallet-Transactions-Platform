@@ -5,6 +5,7 @@ import "time"
 type TransactionRequest struct {
 	WalletID string `json:"wallet_id"`
 	Amount   int64  `json:"amount"`
+	RequestID string `json:"request_id"`
 }
 
 type TransactionResponse struct {
