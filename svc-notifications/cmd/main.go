@@ -5,12 +5,10 @@ import (
 	"net/http"
 	"os"
 
-	"svc-transactions/api/rest"
-	"svc-transactions/client/notification"
-	"svc-transactions/client/wallet"
-	"svc-transactions/external/mongodb"
-	"svc-transactions/internal/transactions"
-	"svc-transactions/util/logger"
+	"svc-notifications/api/rest"
+	"svc-notifications/external/mongodb"
+	"svc-notifications/internal/notification"
+	"svc-notifications/util/logger"
 
 	"github.com/joho/godotenv"
 )
@@ -33,16 +31,8 @@ func main() {
 	}
 	logger.Log.Info().Msg("Connected to MongoDB")
 
-	walletServiceURL := os.Getenv("WALLET_SERVICE_URL")
-	walletClient, err := wallet.NewClient(walletServiceURL)
-	if err != nil {
-		logger.Log.Fatal().Err(err).Msg("Failed to create wallet client")
-	}
-	notificationServiceURL := os.Getenv("NOTIFICATION_SERVICE_URL")
-	notificationClient := notification.NewClient(notificationServiceURL)
-
-	repo := transactions.NewRepository(db)
-	service := transactions.NewService(repo, walletClient,notificationClient)
+	repo := notification.NewRepository(db)
+	service := notification.NewService(repo)
 	controller := rest.NewController(service)
 	routes := rest.NewRouter(controller)
 
