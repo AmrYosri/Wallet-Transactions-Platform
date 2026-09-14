@@ -1,12 +1,38 @@
 services:
+  svc-user:
+    build: ./svc-user
+    ports:
+      - "8002:8002"
+    environment:
+      SERVER_PORT: "8002"
+      GRPC_PORT: "9002"
+      MONGO_URI: "${MONGO_URI}"
+      MONGO_PASSWORD: "${MONGO_PASSWORD}"
+      MONGO_NAME: "svc-user"
+
   svc-wallet:
     build: ./svc-wallet
     ports:
       - "8000:8000"
     environment:
       SERVER_PORT: "8000"
+      GRPC_PORT: "9000"
       MONGO_URI: "${MONGO_URI}"
+      MONGO_PASSWORD: "${MONGO_PASSWORD}"
       MONGO_NAME: "svc-wallet"
+      USER_SERVICE_GRPC_ADDR: "svc-user:9002"
+    depends_on:
+      - svc-user
+
+  svc-notifications:
+    build: ./svc-notifications
+    ports:
+      - "8004:8004"
+    environment:
+      SERVER_PORT: "8004"
+      MONGO_URI: "${MONGO_URI}"
+      MONGO_PASSWORD: "${MONGO_PASSWORD}"
+      MONGO_NAME: "svc-notifications"
 
   svc-transactions:
     build: ./svc-transactions
@@ -15,7 +41,10 @@ services:
     environment:
       SERVER_PORT: "8001"
       MONGO_URI: "${MONGO_URI}"
+      MONGO_PASSWORD: "${MONGO_PASSWORD}"
       MONGO_NAME: "svc-transactions"
-      WALLET_SERVICE_URL: "http://svc-wallet:8000"
+      WALLET_SERVICE_URL: "svc-wallet:9000"
+      NOTIFICATION_SERVICE_URL: "http://svc-notifications:8004"
     depends_on:
       - svc-wallet
+      - svc-notifications

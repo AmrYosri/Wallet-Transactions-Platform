@@ -12,6 +12,7 @@ message BalanceChangeRequest {
   string wallet_id = 1;
   string type = 2;
   int64 amount = 3;
+  string request_id = 4;
 }
 
 message BalanceChangeResponse {

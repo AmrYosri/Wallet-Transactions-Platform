@@ -5,6 +5,7 @@ import (
 	"net/http"
 
 	"svc-wallet/internal/wallet"
+	"svc-wallet/util/apperror"
 )
 
 type Controller struct {
@@ -19,17 +20,16 @@ func NewController(service *wallet.Service) *Controller {
 
 func (c *Controller) CreateWallet(w http.ResponseWriter, r *http.Request) {
 	var req wallet.CreateWalletRequest
-	err := json.NewDecoder(r.Body).Decode(&req)
-	if err != nil {
-		http.Error(w, "invalid request body", http.StatusBadRequest)
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		apperror.Write(w, apperror.InvalidRequestBody)
 		return
 	}
 
-	ctx := r.Context()
-
-	newWallet, err := c.service.CreateWallet(ctx, req.OwnerPhone, req.Currency, req.NationalID)
+	newWallet, err := c.service.CreateWallet(r.Context(), req.OwnerPhone, req.Currency, req.NationalID)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
+		// The service already returns an AppError, so the status comes from
+		// the error itself rather than being guessed here.
+		apperror.Write(w, err)
 		return
 	}
 
@@ -49,13 +49,12 @@ func (c *Controller) CreateWallet(w http.ResponseWriter, r *http.Request) {
 func (c *Controller) GetWallet(w http.ResponseWriter, r *http.Request) {
 	id := r.PathValue("id")
 
-	ctx := r.Context()
-
-	foundWallet, err := c.service.GetWallet(ctx, id)
+	foundWallet, err := c.service.GetWallet(r.Context(), id)
 	if err != nil {
-		http.Error(w, "not valid id", http.StatusNotFound)
+		apperror.Write(w, err)
 		return
 	}
+
 	resp := wallet.WalletResponse{
 		ID:         foundWallet.ID.Hex(),
 		OwnerPhone: foundWallet.OwnerPhone,
@@ -63,24 +62,35 @@ func (c *Controller) GetWallet(w http.ResponseWriter, r *http.Request) {
 		Currency:   foundWallet.Currency,
 		Status:     foundWallet.Status,
 	}
+
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
 	json.NewEncoder(w).Encode(resp)
 }
+
 func (c *Controller) ChangeBalance(w http.ResponseWriter, r *http.Request) {
 	var req wallet.BalanceChangeRequest
-	err := json.NewDecoder(r.Body).Decode(&req)
-	if err != nil {
-		http.Error(w, "invalid request body", http.StatusBadRequest)
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		apperror.Write(w, apperror.InvalidRequestBody)
 		return
 	}
+
+	// Idempotency key. Required — without one, a retried request applies the
+	// balance change a second time.
+	requestID := r.Header.Get("Idempotency-Key")
+	if requestID == "" {
+		apperror.Write(w, apperror.InvalidRequestBody)
+		return
+	}
+
 	id := r.PathValue("id")
-	ctx := r.Context()
-	updatedWallet, balanceBefore, err := c.service.ApplyBalanceChange(ctx, id, req.Type, req.Amount)
+
+	updatedWallet, balanceBefore, err := c.service.ApplyBalanceChange(r.Context(), id, req.Type, req.Amount, requestID)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
+		apperror.Write(w, err)
 		return
 	}
+
 	resp := wallet.BalanceChangeResponse{
 		WalletID:      updatedWallet.ID.Hex(),
 		Type:          req.Type,
@@ -92,5 +102,4 @@ func (c *Controller) ChangeBalance(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
 	json.NewEncoder(w).Encode(resp)
-
 }
